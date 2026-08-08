@@ -19,15 +19,18 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parent.parent.parent
 VENDOR = ROOT / "vendor"
 
-# Stabile 7.1 Release – statisch gelinkt, GPL (enthält libx265)
+# Stabile 8.1 Release – statisch gelinkt, GPL (enthält libx265)
 # Gepinnt auf konkreten Autobuild (nicht "latest") fuer reproduzierbare Builds.
+# ACHTUNG: BtbN loescht alte Autobuild-Releases nach einigen Monaten – ein
+# 404 hier heisst: neuen Autobuild von
+# https://github.com/BtbN/FFmpeg-Builds/releases waehlen und Hash aktualisieren.
 FFMPEG_URL = (
     "https://github.com/BtbN/FFmpeg-Builds/releases/download/"
-    "autobuild-2026-02-24-16-00/"
-    "ffmpeg-n7.1.3-40-gcddd06f3b9-win64-gpl-7.1.zip"
+    "autobuild-2026-08-07-13-13/"
+    "ffmpeg-n8.1.2-34-g9b6c8969e0-win64-gpl-8.1.zip"
 )
-# Nach URL-Update: CI laufen lassen, neuen Hash aus Log uebernehmen.
-EXPECTED_SHA256 = "53e8df0587165ed1d3868225ed9f866a6f261a7a707ba5ffcf5c4d611869297e"
+# Nach URL-Update: neuen Hash mit `shasum -a 256 <datei>.zip` ermitteln.
+EXPECTED_SHA256 = "1555d35c6d6c747f152cb7c2f8b2e8cd5978a12aecd1e4863ad59438bcef9492"
 
 
 def download_and_extract() -> None:
