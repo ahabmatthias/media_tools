@@ -183,30 +183,30 @@ def build(shared: dict):
                 if result["invalid_files"]:
                     ui.html(
                         f'<div class="mt-card-header" style="margin-top:4px;">'
-                        f'Ungültig ({len(result["invalid_files"])})</div>'
+                        f"Ungültig ({len(result['invalid_files'])})</div>"
                     )
                     for inv in result["invalid_files"][:10]:
                         ui.html(
                             f'<div style="padding:4px 16px;'
-                            f'font-family:Menlo,monospace;font-size:11px;'
+                            f"font-family:Menlo,monospace;font-size:11px;"
                             f'color:{theme.COLORS["muted"]};">{escape(inv["path"].name)}</div>'
                         )
                     if len(result["invalid_files"]) > 10:
                         ui.html(
                             f'<div class="mt-hint" style="padding:4px 16px;">'
-                            f'… und {len(result["invalid_files"]) - 10} weitere</div>'
+                            f"… und {len(result['invalid_files']) - 10} weitere</div>"
                         )
 
                 if result["conflicts"]:
                     ui.html(
                         f'<div class="mt-card-header" style="margin-top:4px;'
                         f'color:{theme.COLORS["danger"]} !important;">'
-                        f'{len(result["conflicts"])} Konflikte – Ausführen blockiert</div>'
+                        f"{len(result['conflicts'])} Konflikte – Ausführen blockiert</div>"
                     )
                     for c in result["conflicts"][:5]:
                         ui.html(
                             f'<div style="padding:4px 16px;'
-                            f'font-family:Menlo,monospace;font-size:11px;'
+                            f"font-family:Menlo,monospace;font-size:11px;"
                             f'color:{theme.COLORS["danger"]};">{c["filename"]} (Jahr {c["year"]})</div>'
                         )
 

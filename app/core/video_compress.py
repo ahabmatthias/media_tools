@@ -55,11 +55,36 @@ def human_mb(bytes_size: float) -> float:
 
 
 def detect_videotoolbox() -> bool:
+    """Prüft per Mini-Encode, ob hevc_videotoolbox zur Laufzeit funktioniert.
+
+    Ein Listing-Check (`-h encoder=...`) reicht nicht: Der Encoder kann
+    einkompiliert sein, aber zur Laufzeit fehlen – z.B. verweigert macOS 26
+    x86_64-Binaries unter Rosetta das Hardware-Encoding.
+    """
     try:
         res = subprocess.run(
-            ["ffmpeg", "-hide_banner", "-h", "encoder=hevc_videotoolbox"],
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=black:s=320x240:r=10:d=0.1",
+                "-frames:v",
+                "1",
+                "-c:v",
+                "hevc_videotoolbox",
+                "-b:v",
+                "1M",
+                "-f",
+                "null",
+                "-",
+            ],
             capture_output=True,
             text=True,
+            timeout=15,
         )
         return res.returncode == 0
     except Exception:
@@ -89,7 +114,7 @@ def ffprobe_json(path: Path) -> ProbeInfo:
         str(path),
     ]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if res.returncode != 0:
             return ProbeInfo(None, None, None)
         data = json.loads(res.stdout or "{}")
@@ -257,8 +282,11 @@ def preview_compression(
     result = []
 
     for src in files:
-        dst_encoded = target_path / src.with_suffix(".mp4").name
-        dst_copy = target_path / src.name
+        # Relative Struktur im Ziel spiegeln – verhindert Namenskollisionen
+        # bei rekursivem Scan (gleicher Dateiname in verschiedenen Unterordnern)
+        rel = src.relative_to(source_path)
+        dst_encoded = (target_path / rel).with_suffix(".mp4")
+        dst_copy = target_path / rel
 
         try:
             size_mb = round(human_mb(src.stat().st_size), 1)
@@ -269,7 +297,8 @@ def preview_compression(
         if not cfg.overwrite and (dst_encoded.exists() or dst_copy.exists()):
             result.append(
                 {
-                    "name": src.name,
+                    "name": str(rel),
+                    "path": str(src),
                     "size_mb": size_mb,
                     "resolution": "–",
                     "current_bitrate_mbps": None,
@@ -298,7 +327,8 @@ def preview_compression(
 
         result.append(
             {
-                "name": src.name,
+                "name": str(rel),
+                "path": str(src),
                 "size_mb": size_mb,
                 "resolution": resolution,
                 "current_bitrate_mbps": current_bitrate_mbps,
@@ -327,8 +357,8 @@ def compress_files(
     Führt Komprimierung aus.
 
     progress_cb(current, total, filename) wird vor jeder Datei aufgerufen.
-    cached_probes: {filename: ProbeInfo} aus Preview – vermeidet erneutes ffprobe.
-    Gibt zurück: {compressed, skipped, failed, hw_fallbacks, error_details}
+    cached_probes: {voller Quellpfad: ProbeInfo} aus Preview – vermeidet erneutes ffprobe.
+    Gibt zurück: {compressed, skipped, failed, hw_fallbacks, hw_unavailable, error_details}
     """
     source_path = Path(source)
     target_path = Path(target)
@@ -343,7 +373,9 @@ def compress_files(
 
     target_path.mkdir(parents=True, exist_ok=True)
 
-    use_vt = detect_videotoolbox() if codec == "auto" else codec == "hevc_videotoolbox"
+    want_vt = codec in ("auto", "hevc_videotoolbox")
+    use_vt = want_vt and detect_videotoolbox()
+    hw_unavailable = want_vt and not use_vt
     video_codec = "hevc_videotoolbox" if use_vt else "libx265"
 
     cfg = _make_config(source_path, target_path, recursive, min_size_mb, codec, dry_run=False)
@@ -360,15 +392,16 @@ def compress_files(
             except Exception:
                 pass
 
-        dst_encoded = target_path / src.with_suffix(".mp4").name
-        dst_copy = target_path / src.name
+        rel = src.relative_to(source_path)
+        dst_encoded = (target_path / rel).with_suffix(".mp4")
+        dst_copy = target_path / rel
 
         if not cfg.overwrite and (dst_encoded.exists() or dst_copy.exists()):
             skipped += 1
             continue
 
-        if cached_probes and src.name in cached_probes:
-            probe = cached_probes[src.name]
+        if cached_probes and str(src) in cached_probes:
+            probe = cached_probes[str(src)]
         else:
             probe = ffprobe_json(src)
         target_bitrate = pick_target_bitrate(probe.width, cfg)
@@ -385,6 +418,7 @@ def compress_files(
                     skipped += 1
                     continue
                 try:
+                    out.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, out)
                     skipped += 1
                 except Exception as e:
@@ -399,6 +433,7 @@ def compress_files(
             src, dst_encoded, video_codec, target_bitrate, cfg.audio_bitrate, cfg.copy_audio
         )
         try:
+            dst_encoded.parent.mkdir(parents=True, exist_ok=True)
             proc = subprocess.run(cmd, capture_output=True, text=True)
             if proc.returncode == 0 and dst_encoded.exists():
                 compressed += 1
@@ -445,5 +480,6 @@ def compress_files(
         "skipped": skipped,
         "failed": failed,
         "hw_fallbacks": hw_fallbacks,
+        "hw_unavailable": hw_unavailable,
         "error_details": error_details,
     }

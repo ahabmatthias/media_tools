@@ -11,6 +11,7 @@ from pathlib import Path
 
 from nicegui import app as nicegui_app
 from nicegui import ui
+from send2trash import send2trash
 
 from app.core.constants import IMAGE_EXTS, VIDEO_EXTS
 from app.core.duplicates import find_duplicates
@@ -183,7 +184,7 @@ def build(shared: dict):
 
     ui.separator().classes("mt-4")
 
-    # ── Löschen ────────────────────────────────────────────────────
+    # ── Löschen (in den Papierkorb) ────────────────────────────────
     async def _execute_delete(to_delete: list[str]):
         deleted, errors = 0, []
         for path in to_delete:
@@ -191,12 +192,12 @@ def build(shared: dict):
                 if os.path.islink(path):
                     errors.append(f"{path}: Symlinks werden nicht gelöscht")
                     continue
-                os.remove(path)
+                send2trash(path)
                 deleted += 1
             except OSError as e:
                 errors.append(f"{path}: {e}")
 
-        msg = f"{deleted} Datei(en) gelöscht."
+        msg = f"{deleted} Datei(en) in den Papierkorb gelegt."
         if errors:
             msg += f"  {len(errors)} Fehler."
         ui.notify(msg, type="positive" if not errors else "warning")
@@ -213,22 +214,26 @@ def build(shared: dict):
             await _execute_delete(to_delete)
 
         with ui.dialog() as dialog, ui.card().classes("mt-card"):
-            ui.label(f"{len(to_delete)} Datei(en) endgültig löschen?").classes(
+            ui.label(f"{len(to_delete)} Datei(en) in den Papierkorb legen?").classes(
                 f"font-semibold text-[{theme.COLORS['text']}]"
             )
-            ui.label("Diese Aktion kann nicht rückgängig gemacht werden.").classes("mt-hint")
+            ui.label("Die Dateien können im Papierkorb wiederhergestellt werden.").classes(
+                "mt-hint"
+            )
             with ui.row().classes("w-full justify-end gap-2 mt-2"):
                 ui.button("Abbrechen", on_click=dialog.close).classes("mt-btn-ghost").props(
                     "flat no-caps"
                 )
-                ui.button("Löschen", on_click=_confirm_and_delete).classes("mt-btn-danger").props(
-                    "flat no-caps"
-                )
+                ui.button("In den Papierkorb", on_click=_confirm_and_delete).classes(
+                    "mt-btn-danger"
+                ).props("flat no-caps")
         dialog.open()
 
     ui.button(
-        "Ausgewählte löschen",
+        "Ausgewählte in den Papierkorb",
         on_click=do_delete,
         icon="delete",
     ).classes("mt-btn-danger mt-2").props("flat no-caps")
-    ui.label("Tipp: Vorher Backup erstellen!").classes("mt-hint mt-1")
+    ui.label("Dateien landen im Papierkorb und können wiederhergestellt werden.").classes(
+        "mt-hint mt-1"
+    )

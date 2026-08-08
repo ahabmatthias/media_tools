@@ -14,6 +14,7 @@ import re
 import shutil
 from collections import defaultdict
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 
 from app.core.constants import ALL_MEDIA_EXTS, IMAGE_EXTS
@@ -28,6 +29,13 @@ _XMP_DATE_RE = re.compile(
 
 _FILENAME_DATE_RE = re.compile(r"(\d{4})(\d{2})(\d{2})")
 
+_MIN_YEAR = 1990
+
+
+def _plausible_year(year: int) -> bool:
+    """Plausibilitätscheck: 1990 bis nächstes Jahr (Kameras mit falscher Uhr abfangen)."""
+    return _MIN_YEAR <= year <= datetime.now().year + 1
+
 
 def extract_year_from_filename(filename: str) -> int | None:
     """
@@ -37,14 +45,14 @@ def extract_year_from_filename(filename: str) -> int | None:
     """
     try:
         year = int(filename[:4])
-        if 1990 <= year <= 2030:
+        if _plausible_year(year):
             return year
     except (ValueError, IndexError):
         pass
     m = _FILENAME_DATE_RE.search(filename)
     if m:
         year = int(m.group(1))
-        if 1990 <= year <= 2030:
+        if _plausible_year(year):
             return year
     return None
 
@@ -160,7 +168,7 @@ def _read_exif_year(file_path: Path) -> int | None:
                     val = source.get(tag)
                     if val:
                         year = int(str(val)[:4])
-                        if 1990 <= year <= 2030:
+                        if _plausible_year(year):
                             return year
             # XMP-Fallback (z.B. Photoshop-bearbeitete Sony-Dateien ohne DateTimeOriginal)
             xmp_raw = img.info.get("xmp")
@@ -173,7 +181,7 @@ def _read_exif_year(file_path: Path) -> int | None:
                 m = _XMP_DATE_RE.search(xmp)
                 if m:
                     year = int(m.group(1))
-                    if 1990 <= year <= 2030:
+                    if _plausible_year(year):
                         return year
     except Exception:
         pass
@@ -256,7 +264,7 @@ def _extract_year(file_path: Path) -> int | None:
         try:
             meta = _run_silent(get_metadata, str(file_path), "video")
             dt = meta.get("datetime")
-            if dt and 1990 <= dt.year <= 2030:
+            if dt and _plausible_year(dt.year):
                 return int(dt.year)
         except Exception:
             pass

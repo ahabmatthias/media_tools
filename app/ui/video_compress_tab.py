@@ -269,8 +269,8 @@ def build(shared: dict):
         # Build cached probes from preview to avoid re-running ffprobe
         cached_probes: dict[str, ProbeInfo] = {}
         for entry in _state.get("preview") or []:
-            if entry.get("probe_width") is not None:
-                cached_probes[entry["name"]] = ProbeInfo(
+            if entry.get("path") and entry.get("probe_width") is not None:
+                cached_probes[entry["path"]] = ProbeInfo(
                     width=entry["probe_width"],
                     height=entry["probe_height"],
                     bitrate_bps=entry["probe_bitrate_bps"],
@@ -300,6 +300,8 @@ def build(shared: dict):
         with pills_row:
             if result["compressed"]:
                 theme.pill(f"{result['compressed']} komprimiert", "good")
+            if result.get("hw_unavailable"):
+                theme.pill("Hardware nicht verfügbar – Software genutzt", "neutral")
             if result.get("hw_fallbacks"):
                 theme.pill(f"{result['hw_fallbacks']}× Software-Fallback", "neutral")
             if result["skipped"]:

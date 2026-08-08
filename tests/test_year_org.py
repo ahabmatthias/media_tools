@@ -4,6 +4,7 @@ Alle Tests laufen im dry-run / scan-only Modus und bewegen keine echten Dateien.
 """
 
 from collections import defaultdict
+from datetime import datetime
 
 from app.core.year_org import (
     execute_organization,
@@ -20,8 +21,9 @@ def test_extract_year_valid():
 
 
 def test_extract_year_edge_cases():
+    next_year = datetime.now().year + 1
     assert extract_year_from_filename("1990-01-01_000000_old.jpg") == 1990
-    assert extract_year_from_filename("2030-12-31_235959_future.jpg") == 2030
+    assert extract_year_from_filename(f"{next_year}-12-31_235959_future.jpg") == next_year
 
 
 def test_extract_year_invalid():
@@ -32,9 +34,10 @@ def test_extract_year_invalid():
 
 
 def test_extract_year_out_of_range():
-    """Jahre außerhalb 1990–2030 werden abgelehnt."""
+    """Jahre außerhalb 1990 bis <nächstes Jahr> werden abgelehnt."""
+    year_after_next = datetime.now().year + 2
     assert extract_year_from_filename("1985-01-01_foto.jpg") is None
-    assert extract_year_from_filename("2035-01-01_foto.jpg") is None
+    assert extract_year_from_filename(f"{year_after_next}-01-01_foto.jpg") is None
 
 
 # ── find_filename_conflicts ─────────────────────────────────────────────────

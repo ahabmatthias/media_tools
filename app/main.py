@@ -62,7 +62,7 @@ def index():
         with ui.row().classes("items-center gap-3 w-full"):
             ui.html(
                 f'<span style="display:inline-flex;align-items:baseline;'
-                f'font-size:15px;letter-spacing:-0.01em;'
+                f"font-size:15px;letter-spacing:-0.01em;"
                 f'white-space:nowrap;user-select:none;">'
                 f'<span style="font-weight:700;">File</span>'
                 f'<span style="font-weight:700;color:{theme.COLORS["accent"]};position:relative;top:0.5px;">'
